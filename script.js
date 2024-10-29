@@ -18,18 +18,6 @@ if ("geolocation" in navigator) {
 } else {
     console.log("Geolocation is not supported by this browser.");
 }
-// Add a marker at user's current location
-if ("geolocation" in navigator) {
-    navigator.geolocation.getCurrentPosition(function(position) {
-        const lat = position.coords.latitude;
-        const lon = position.coords.longitude;
-        L.marker([lat, lon]).addTo(map)
-            .bindPopup('You are here')
-            .openPopup();
-    }, function(error) {
-        console.error("Error getting location:", error);
-    });
-}
 // Watch user's position and update marker location
 let userMarker = null;
 navigator.geolocation.watchPosition(function(position) {
@@ -81,3 +69,37 @@ navigator.geolocation.watchPosition(function(position) {
     maximumAge: 30000,
     timeout: 27000
 });
+// Add direction indicator when device orientation is available
+let directionMarker = null;
+if (window.DeviceOrientationEvent) {
+    window.addEventListener('deviceorientation', function(event) {
+        // Only proceed if we have user location and valid orientation data
+        if (userMarker && event.alpha !== null) {
+            const heading = event.alpha; // Degrees clockwise from north
+            
+            if (directionMarker === null) {
+                // Create a small line marker to show direction
+                directionMarker = L.polyline([[0,0], [0,0]], {
+                    color: '#ff3333',
+                    weight: 3
+                }).addTo(map);
+            }
+
+            // Get current position from userMarker
+            const pos = userMarker.getLatLng();
+            
+            // Calculate end point for direction line (30 meters in facing direction)
+            const rad = (heading * Math.PI) / 180;
+            const lat2 = pos.lat + (0.0003 * Math.cos(rad));
+            const lng2 = pos.lng + (0.0003 * Math.sin(rad));
+            
+            // Update direction line
+            directionMarker.setLatLngs([
+                [pos.lat, pos.lng],
+                [lat2, lng2]
+            ]);
+        }
+    });
+} else {
+    console.log("Device orientation not supported");
+}
