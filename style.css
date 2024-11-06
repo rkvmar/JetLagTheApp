@@ -1,3 +1,111 @@
+body {
+    background-color: #2b2b2b;
+}   
 #map { 
-    height: 90vh; 
+    height: 98vh;
+    border-radius: 20px;
+}
+#nav {
+    height: 10vh;
+    background-color: #0e0031;
+    border-radius: 20px 20px 0 0;
+    width: 100%;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    z-index: 1000;
+}   
+#topbar {
+    height: 80px;
+    width: 100%;
+    position: fixed;
+    top: 0px;
+    left: 0;
+    z-index: 1001;
+    border-radius: 0 0 20px 20px;
+}
+#secondbar {
+    height: 100px;
+    width: 100%;
+    position: fixed;
+    top: 90px;
+    left: 0;
+    z-index: 1002;
+}
+#coins {
+    display: block;
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    height: 100%;
+    background-color: #f3ae00;
+    border-radius: 10px;
+    transition: width 0.1s ease-in-out;
+
+}
+#challenge {
+    display: block;
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    height: 80%;
+    background-color: #ffffff;
+    border-radius: 10px;
+    width: 100px;
+    transition: width 0.1s ease-in-out, left 0.3s ease;
+}
+#coincount {
+    font-family: 'Nunito', sans-serif;
+    position: absolute;
+    left: 80px;
+    font-size: 50px;
+    color: white;
+    top: -30px;
+}
+#challengetext {
+    font-family: 'Nunito', sans-serif;
+    position: absolute;
+    font-size: 20px;
+    left: 80px;
+    top: 30%;
+    transform: translateY(-50%);
+    transition: opacity 0.3s ease;
+}
+.nav-button {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 80px;
+    /* Prevent button from moving */
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+    position: relative;
+}
+
+.nav-button:active,
+.nav-button:focus {
+    transform: none;
+    outline: none;
+}
+
+.nav-button svg {
+    transition: transform 0.2s;
+    height: 60%;
+    max-width: 100%;
+    fill: white;
+}
+
+/* Add hover effect */
+.nav-button:hover svg {
+    transform: scale(1.1);
+}
+
+/* Active state */
+.nav-button:active svg {
+    transform: scale(0.95);
 }
