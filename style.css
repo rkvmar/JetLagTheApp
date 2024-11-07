@@ -2,62 +2,71 @@ body {
     background-color: #2b2b2b;
 }   
 #map { 
-    height: 98vh;
-    border-radius: 20px;
+    height: 100vh;
+    border-radius: 20px 20px 0 0;
 }
 #nav {
     height: 10vh;
-    background-color: #0e0031;
+    background: rgba(14, 0, 49, 0.3);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     border-radius: 20px 20px 0 0;
     width: 100%;
     position: fixed;
     bottom: 0;
     left: 0;
     z-index: 1000;
+    border-top: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 -8px 32px 0 rgba(31, 38, 135, 0.37);
+    margin: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    display: flex;
+    align-items: center;
 }   
-#topbar {
-    height: 80px;
+#nav > div {
     width: 100%;
-    position: fixed;
-    top: 0px;
-    left: 0;
-    z-index: 1001;
-    border-radius: 0 0 20px 20px;
-}
-#secondbar {
-    height: 100px;
-    width: 100%;
-    position: fixed;
-    top: 90px;
-    left: 0;
-    z-index: 1002;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    height: 100%;
+    max-width: 100%;
 }
 #coins {
-    display: block;
-    position: absolute;
+    display: inline-flex;
+    align-items: center;
+    position: fixed;
     top: 15px;
     left: 15px;
-    height: 100%;
-    background-color: #f3ae00;
+    height: 70px;
+    padding: 0 15px 0 70px;
+    min-width: fit-content;
+    background: rgba(255, 200, 0, 0.25);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 200, 0, 0.4);
     border-radius: 10px;
-    transition: width 0.1s ease-in-out;
-
+    transition: all 0.3s ease;
+    z-index: 1001;
 }
 #coincount {
     font-family: 'Nunito', sans-serif;
-    position: absolute;
-    left: 80px;
-    font-size: 50px;
-    color: white;
-    top: -30px;
+    font-size: 40px;
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    white-space: nowrap;
+    margin: 0;
+    line-height: 1;
 }
 #challenge {
     display: inline-flex;
-    position: absolute;
-    top: 15px;
+    position: fixed;
+    top: 100px;
     left: 15px;
-    height: 80%;
-    background-color: #ffffff;
+    height: 80px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
     border-radius: 10px;
     padding-right: 20px;
     align-items: center;
@@ -70,39 +79,47 @@ body {
     font-size: 20px;
     margin-left: 80px;
     white-space: nowrap;
+    color: rgba(255, 255, 255, 0.9);
 }
 .nav-button {
-    background: none;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-    height: 100%;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 15px;
+    padding: 10px;
+    margin: 0 10px;
+    transition: all 0.3s ease;
+    width: 60px;
+    height: 60px;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 80px;
-    /* Prevent button from moving */
-    outline: none;
-    -webkit-tap-highlight-color: transparent;
-    position: relative;
 }
 
-.nav-button:active,
-.nav-button:focus {
-    transform: none;
-    outline: none;
+.nav-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px 0 rgba(31, 38, 135, 0.37);
+}
+
+.nav-button:active {
+    background: rgba(255, 255, 255, 0.15);
+    transform: translateY(0px);
 }
 
 .nav-button svg {
     transition: transform 0.2s;
-    height: 60%;
-    max-width: 100%;
-    fill: white;
+    height: 30px;
+    width: 30px;
+    fill: rgba(255, 255, 255, 0.9);
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
 }
 
 /* Add hover effect */
 .nav-button:hover svg {
     transform: scale(1.1);
+    fill: white;
 }
 
 /* Active state */
@@ -122,10 +139,11 @@ body {
     transform: translate(-50%, -50%);
     width: 50vh;
     height: 80vh;
-    background-color: white;
+    background: none;
     border-radius: 20px;
     z-index: 1005;
     animation: fadeIn 0.3s ease;
+    perspective: 1000px;
 }
 
 /* Media query to handle shorter screens */
@@ -161,9 +179,49 @@ body {
 .challenge-content {
     padding: 0;
     height: 100%;
+    width: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.6s;
+    background: none;
+}
+
+.challenge-content.flipping {
+    transform: rotateY(180deg);
+}
+
+.card-front,
+.card-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    background: white;
+    border-radius: 20px;
     display: flex;
     flex-direction: column;
-    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.card-front {
+    transform: rotateY(0deg);
+}
+
+.card-back {
+    background: #1a237e;
+    transform: rotateY(180deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 10px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Replace the ::after content with a background SVG */
+.card-back svg {
+    height: 120px;
+    width: 120px;
+    fill: rgba(255, 255, 255, 0.2);
 }
 
 .challenge-content h1 {
@@ -183,6 +241,7 @@ body {
     flex-grow: 1;
     overflow-y: auto;
     padding: 20px 30px;
+    margin: 0;
 }
 
 .challenge-reward {
@@ -192,9 +251,184 @@ body {
     font-family: 'Nunito', sans-serif;
     font-size: 24px;
     font-weight: bold;
-    margin-top: auto;
     padding: 20px 30px;
     background-color: #f3ae00;
     color: white;
     border-radius: 0 0 20px 20px;
+    margin-top: auto;
+}
+
+#signin-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #2b2b2b;
+    z-index: 2000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.signin-container {
+    background-color: white;
+    padding: 30px;
+    border-radius: 20px;
+    width: 80%;
+    max-width: 400px;
+    text-align: center;
+}
+
+.signin-container h1 {
+    font-family: 'Nunito', sans-serif;
+    color: #0e0031;
+    margin-bottom: 30px;
+}
+
+.signin-container input {
+    width: 100%;
+    padding: 12px;
+    margin: 10px 0;
+    border: 2px solid #ddd;
+    border-radius: 10px;
+    font-size: 16px;
+    box-sizing: border-box;
+}
+
+#signin-button {
+    width: 100%;
+    padding: 12px;
+    background-color: #f3ae00;
+    border: none;
+    border-radius: 10px;
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 20px;
+}
+
+#signin-button:hover {
+    background-color: #e5a400;
+}
+
+#signup-link {
+    color: #f3ae00;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+#coins svg {
+    position: absolute;
+    left: 10px;
+    height: 45px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.spin-challenge-button {
+    font-family: 'Nunito', sans-serif;
+    font-size: 18px;
+    font-weight: bold;
+    padding: 15px 30px;
+    margin: 20px auto;
+    background-color: #f3ae00;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: block;
+}
+
+.spin-challenge-button:hover {
+    background-color: #e5a400;
+    transform: scale(1.05);
+}
+
+.spin-challenge-button:active {
+    transform: scale(0.95);
+}
+
+.challenge-buttons {
+    display: flex;
+    gap: 10px;
+    padding: 0 30px 20px;
+    margin-top: auto;
+}
+
+.challenge-button {
+    flex: 1;
+    font-family: 'Nunito', sans-serif;
+    font-size: 16px;
+    font-weight: bold;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.complete-button {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.complete-button:hover {
+    background-color: #45a049;
+    transform: translateY(-2px);
+}
+
+.veto-button {
+    background-color: #ff4444;
+    color: white;
+}
+
+.veto-button:hover {
+    background-color: #ff3333;
+    transform: translateY(-2px);
+}
+
+.challenge-button:active {
+    transform: translateY(1px);
+}
+
+#challenge.veto-active {
+    background: rgba(255, 0, 0, 0.2);
+    border-color: rgba(255, 0, 0, 0.3);
+}
+
+.veto-timer {
+    font-family: 'Nunito', sans-serif;
+    font-size: 36px;
+    font-weight: bold;
+    color: #ff4444;
+    text-align: center;
+    margin: 20px 0;
+}
+
+#challenge.veto-active #challengetext {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+#challenge.veto-active #challenge-icon svg {
+    fill: rgba(255, 255, 255, 0.8);
+}
+
+#challenge-icon svg {
+    transition: opacity 0.3s ease;
+}
+
+#challenge.veto-active #challenge-icon svg {
+    animation: flip-hourglass 1s ease-in-out forwards;
+}
+
+@keyframes flip-hourglass {
+    0% {
+        transform: translateY(-50%) rotate(0deg);
+    }
+    100% {
+        transform: translateY(-50%) rotate(180deg);
+    }
 }
