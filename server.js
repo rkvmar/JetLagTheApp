@@ -15,6 +15,8 @@ const users = [{
     activeChallenge: null
 }];
 const challenges = [{title: "Challenge 1", description: "Challenge 1 description", reward: 100}, {title: "Challenge 2", description: "Challenge 2 description", reward: 200}];
+const fs = require('fs');
+const vetoTimers = {}; // Store veto timers for each user
 
 // Enable CORS and JSON parsing
 app.use(cors());
@@ -112,6 +114,69 @@ app.post('/clear-challenge', (req, res) => {
         res.json({ success: true });
     } else {
         res.json({ success: false, error: 'User not found' });
+    }
+});
+
+// Modify the veto endpoint
+app.post('/veto-challenge', (req, res) => {
+    console.log('Received veto challenge request:', req.body); // Debug line
+    
+    const { username } = req.body;
+    
+    if (!username) {
+        console.log('No username provided in veto request'); // Debug line
+        return res.json({ success: false, error: 'Username required' });
+    }
+    
+    const user = users.find(user => 
+        user.username.toLowerCase() === username.toLowerCase()
+    );
+    
+    console.log('Found user:', user); // Debug line
+    
+    if (user) {
+        // Set veto end time (5 minutes from now)
+        vetoTimers[username] = Date.now() + (5 * 60 * 1000);
+        user.activeChallenge = null;
+        
+        console.log('Set veto timer for user:', username, vetoTimers[username]); // Debug line
+        
+        return res.json({ 
+            success: true, 
+            vetoEndTime: vetoTimers[username] 
+        });
+    } else {
+        console.log('User not found for veto:', username); // Debug line
+        return res.json({ 
+            success: false, 
+            error: 'User not found' 
+        });
+    }
+});
+
+// Add new endpoint to check veto timer
+app.get('/check-veto', (req, res) => {
+    const { username } = req.query;
+    if (!username) {
+        return res.json({ success: false, error: 'Username required' });
+    }
+
+    const vetoEndTime = vetoTimers[username];
+    if (vetoEndTime && vetoEndTime > Date.now()) {
+        res.json({ 
+            success: true, 
+            vetoActive: true, 
+            vetoEndTime 
+        });
+    } else {
+        // Clear expired veto timer
+        if (vetoEndTime) {
+            delete vetoTimers[username];
+        }
+        res.json({ 
+            success: true, 
+            vetoActive: false 
+        });
     }
 });
 
