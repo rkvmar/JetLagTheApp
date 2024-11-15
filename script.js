@@ -61,6 +61,8 @@ let otherUserMarkers = {};
 let otherUserAccuracyCircles = {};
 let vetoTimeout = null;
 let vetoEndTime = null;
+let userMenu = null;
+const otherUsers = new Map(); // Store user data
 
 // Replace the vetoEndTime variable with a function to check server
 async function checkVetoTimer() {
@@ -116,21 +118,21 @@ if ("geolocation" in navigator) {
 // Watch user's position and update marker location
 navigator.geolocation.watchPosition(async function(position) {
     const lat = position.coords.latitude;
-    const lon = position.coords.longitude;
+    const lng = position.coords.longitude;
     const accuracy = position.coords.accuracy;
 
     // Update user marker
     if (userMarker === null) {
-        userMarker = L.marker([lat, lon]).addTo(map);
+        userMarker = L.marker([lat, lng]).addTo(map);
         // Only set view when first creating the marker (initial load)
-        map.setView([lat, lon], 18);
+        map.setView([lat, lng], 18);
     } else {
-        userMarker.setLatLng([lat, lon]);
+        userMarker.setLatLng([lat, lng]);
     }
 
     // Update accuracy circle
     if (accuracyCircle === null) {
-        accuracyCircle = L.circle([lat, lon], {
+        accuracyCircle = L.circle([lat, lng], {
             radius: accuracy,
             color: '#3388ff',
             fillColor: '#3388ff',
@@ -138,23 +140,23 @@ navigator.geolocation.watchPosition(async function(position) {
             weight: 1
         }).addTo(map);
     } else {
-        accuracyCircle.setLatLng([lat, lon]);
+        accuracyCircle.setLatLng([lat, lng]);
         accuracyCircle.setRadius(accuracy);
     }
 
     // Send position to server if user is logged in
     if (currentUsername) {
         try {
-            await fetch('http://localhost:3000/update-position', {
+            await fetch(`${serverURL}/update-position`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     username: currentUsername,
                     position: {
                         lat,
-                        lon,
+                        lng,
                         accuracy,
                         timestamp: new Date().toISOString()
                     }
@@ -407,16 +409,17 @@ document.getElementById('signin-button').addEventListener('click', async functio
     }
 });
 
+// Modify your existing updateOtherUsers function to update the otherUsers Map
 async function updateOtherUsers() {
     if (!currentUsername) return;
     
     try {
-        const response = await fetch('http://localhost:3000/data');
+        const response = await fetch(`${serverURL}/data`);
         const users = await response.json();
         
-        // Remove markers and circles for users who are no longer in the data
+        // Remove markers for users who are no longer present
         for (let username in otherUserMarkers) {
-            if (!users.find(u => u.username === username)) {
+            if (!users.find(u => u.username === username)) {  // Removed loggedIn check
                 map.removeLayer(otherUserMarkers[username]);
                 if (otherUserAccuracyCircles[username]) {
                     map.removeLayer(otherUserAccuracyCircles[username]);
@@ -426,44 +429,11 @@ async function updateOtherUsers() {
             }
         }
         
-        // Update or add markers for other users
+        // Update markers for all users
         users.forEach(user => {
-            if (user.username !== currentUsername && user.position) {
-                const pos = [user.position.lat, user.position.lon];
-                
-                // Update or create marker
-                if (otherUserMarkers[user.username]) {
-                    otherUserMarkers[user.username].setLatLng(pos);
-                } else {
-                    otherUserMarkers[user.username] = L.circleMarker(pos, {
-                        radius: 8,
-                        fillColor: '#4CAF50',
-                        color: '#45a049',
-                        weight: 2,
-                        opacity: 1,
-                        fillOpacity: 0.8
-                    }).addTo(map);
-                    
-                    otherUserMarkers[user.username].bindTooltip(user.username, {
-                        permanent: true,
-                        direction: 'top',
-                        offset: [0, -10]
-                    });
-                }
-
-                // Update or create accuracy circle
-                if (otherUserAccuracyCircles[user.username]) {
-                    otherUserAccuracyCircles[user.username].setLatLng(pos);
-                    otherUserAccuracyCircles[user.username].setRadius(user.position.accuracy);
-                } else {
-                    otherUserAccuracyCircles[user.username] = L.circle(pos, {
-                        radius: user.position.accuracy,
-                        color: '#4CAF50',
-                        fillColor: '#4CAF50',
-                        fillOpacity: 0.1,
-                        weight: 1
-                    }).addTo(map);
-                }
+            if (user.username !== currentUsername && user.position) {  // Removed loggedIn check
+                const pos = [user.position.lat, user.position.lng];
+                // ... rest of marker update logic ...
             }
         });
     } catch (error) {
@@ -662,4 +632,380 @@ async function checkInitialVetoStatus() {
         console.error('Error checking initial veto status:', error);
     }
 }
+
+// Add heartbeat function
+async function sendHeartbeat() {
+    if (!currentUsername) return;
+    
+    try {
+        await fetch(`${serverURL}/heartbeat`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ username: currentUsername })
+        });
+    } catch (error) {
+        console.error('Error sending heartbeat:', error);
+    }
+}
+
+// Start heartbeat when user signs in
+async function handleSignIn() {
+    const usernameInput = document.getElementById('username');
+    const username = usernameInput.value.trim();
+    
+    if (username) {
+        try {
+            const response = await fetch(`${serverURL}/check-user`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username })
+            });
+            
+            const data = await response.json();
+            
+            if (data.exists) {
+                currentUsername = username;
+                coins = data.coins;
+                updateCoins();
+                document.getElementById('signin-overlay').style.display = 'none';
+                
+                // Start heartbeat interval when user signs in
+                setInterval(sendHeartbeat, 1000);
+                
+                // ... rest of sign in logic ...
+            } else {
+                alert('User not found');
+            }
+        } catch (error) {
+            console.error('Error checking user:', error);
+            alert('Error signing in. Please try again.');
+        }
+    }
+}
+
+// Update the updateOtherUsers function to handle logged-in status
+async function updateOtherUsers() {
+    if (!currentUsername) return;
+    
+    try {
+        const response = await fetch(`${serverURL}/data`);
+        const users = await response.json();
+        
+        // Remove markers for users who are no longer active
+        for (let username in otherUserMarkers) {
+            if (!users.find(u => u.username === username && u.loggedIn)) {
+                map.removeLayer(otherUserMarkers[username]);
+                if (otherUserAccuracyCircles[username]) {
+                    map.removeLayer(otherUserAccuracyCircles[username]);
+                }
+                delete otherUserMarkers[username];
+                delete otherUserAccuracyCircles[username];
+            }
+        }
+        
+        // Update markers only for logged-in users
+        users.forEach(user => {
+            if (user.username !== currentUsername && user.loggedIn && user.position) {
+                const pos = [user.position.lat, user.position.lng];
+                
+                // ... rest of marker update logic ...
+            }
+        });
+    } catch (error) {
+        console.error('Error updating other users:', error);
+    }
+}
+
+// Add these variables at the top of your script
+let heartbeatInterval = null;
+
+// Modify the handleSignIn function
+async function handleSignIn() {
+    const usernameInput = document.getElementById('username');
+    const username = usernameInput.value.trim();
+    
+    if (username) {
+        try {
+            const response = await fetch(`${serverURL}/check-user`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username })
+            });
+            
+            const data = await response.json();
+            
+            if (data.exists) {
+                currentUsername = username;
+                coins = data.coins;
+                updateCoins();
+                document.getElementById('signin-overlay').style.display = 'none';
+                
+                // Start heartbeat
+                startHeartbeat();
+                
+                // Start updating other users
+                setInterval(updateOtherUsers, 1000);
+            } else {
+                alert('User not found');
+            }
+        } catch (error) {
+            console.error('Error checking user:', error);
+            alert('Error signing in. Please try again.');
+        }
+    }
+}
+
+// Add heartbeat functions
+function startHeartbeat() {
+    // Clear any existing interval
+    if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+    }
+    
+    // Send immediate heartbeat
+    sendHeartbeat();
+    
+    // Set up regular heartbeat
+    heartbeatInterval = setInterval(sendHeartbeat, 1000);
+}
+
+async function sendHeartbeat() {
+    if (!currentUsername) return;
+    
+    try {
+        const response = await fetch(`${serverURL}/heartbeat`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ username: currentUsername })
+        });
+        
+        if (!response.ok) {
+            console.error('Heartbeat failed:', await response.text());
+        }
+    } catch (error) {
+        console.error('Error sending heartbeat:', error);
+    }
+}
+
+// Add cleanup on window unload
+window.addEventListener('beforeunload', async () => {
+    if (currentUsername) {
+        try {
+            // Clear heartbeat interval
+            if (heartbeatInterval) {
+                clearInterval(heartbeatInterval);
+            }
+            
+            // Optionally, send one final request to mark user as logged out
+            await fetch(`${serverURL}/logout`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username: currentUsername })
+            });
+        } catch (error) {
+            console.error('Error during cleanup:', error);
+        }
+    }
+});
+
+// Replace the default marker with a circular marker
+function createUserMarker(position) {
+    if (userMarker) {
+        map.removeLayer(userMarker);
+    }
+    
+    // Create a circular marker with a pulsing effect
+    userMarker = L.circleMarker(position, {
+        radius: 8,
+        fillColor: '#007AFF', // iOS blue color
+        fillOpacity: 1,
+        color: 'white',
+        weight: 2,
+        className: 'pulse-marker'
+    }).addTo(map);
+}
+
+// Add this CSS to create the pulsing effect
+const style = document.createElement('style');
+style.textContent = `
+    .pulse-marker {
+        animation: pulse 2s ease-out infinite;
+    }
+    @keyframes pulse {
+        0% {
+            opacity: 1;
+            transform: scale(1);
+        }
+        70% {
+            opacity: 0.25;
+            transform: scale(2.5);
+        }
+        100% {
+            opacity: 0;
+            transform: scale(3);
+        }
+    }
+    .leaflet-marker-icon {
+        background: none !important;
+        border: none !important;
+    }
+`;
+document.head.appendChild(style);
+
+// Update the updatePosition function to use the new marker style
+function updatePosition(position) {
+    const pos = [position.coords.latitude, position.coords.longitude];
+    
+    if (!userMarker) {
+        createUserMarker(pos);
+    } else {
+        userMarker.setLatLng(pos);
+    }
+    
+    // Update accuracy circle
+    if (accuracyCircle) {
+        map.removeLayer(accuracyCircle);
+    }
+    
+    accuracyCircle = L.circle(pos, {
+        radius: position.coords.accuracy / 2,
+        fillColor: '#007AFF',
+        fillOpacity: 0.15,
+        color: '#007AFF',
+        weight: 0
+    }).addTo(map);
+}
+
+// Update shop functionality
+function createShopMenu() {
+    console.log('Creating shop menu');
+    const shopOverlay = document.createElement('div');
+    shopOverlay.id = 'shop-overlay';
+    
+    // Create header
+    const header = document.createElement('div');
+    header.className = 'shop-header';
+    
+    const title = document.createElement('h2');
+    title.textContent = 'Shop';
+    
+    const closeButton = document.createElement('button');
+    closeButton.className = 'close-shop';
+    closeButton.textContent = '×';
+    closeButton.onclick = () => {
+        closeShop();
+    };
+    
+    header.appendChild(title);
+    header.appendChild(closeButton);
+    
+    // Create content
+    const content = document.createElement('div');
+    content.className = 'shop-items';
+    
+    // Add shop items with correct SVG icons
+    const items = [
+        { 
+            icon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><path d="M86.8 48c-12.2 0-23.6 5.5-31.2 15L42.7 79C34.5 89.3 19.4 91 9 82.7S-3 59.4 5.3 49L18 33C34.7 12.2 60 0 86.8 0L361.2 0c26.7 0 52 12.2 68.7 33l12.8 16c8.3 10.4 6.6 25.5-3.8 33.7s-25.5 6.6-33.7-3.7L392.5 63c-7.6-9.5-19.1-15-31.2-15L248 48l0 48 40 0c53 0 96 43 96 96l0 160c0 30.6-14.3 57.8-36.6 75.4l65.5 65.5c7.1 7.1 2.1 19.1-7.9 19.1l-39.7 0c-8.5 0-16.6-3.4-22.6-9.4L288 448l-128 0-54.6 54.6c-6 6-14.1 9.4-22.6 9.4L43 512c-10 0-15-12.1-7.9-19.1l65.5-65.5C78.3 409.8 64 382.6 64 352l0-160c0-53 43-96 96-96l40 0 0-48L86.8 48zM160 160c-17.7 0-32 14.3-32 32l0 32c0 17.7 14.3 32 32 32l128 0c17.7 0 32-14.3 32-32l0-32c0-17.7-14.3-32-32-32l-128 0zm32 192a32 32 0 1 0 -64 0 32 32 0 1 0 64 0zm96 32a32 32 0 1 0 0-64 32 32 0 1 0 0 64z"/></svg>`, 
+            title: 'Low-Speed Rail', 
+            price: '10 coins/min' 
+        },
+        { 
+            icon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><path d="M96 0C43 0 0 43 0 96L0 352c0 48 35.2 87.7 81.1 94.9l-46 46C28.1 499.9 33.1 512 43 512l39.7 0c8.5 0 16.6-3.4 22.6-9.4L160 448l128 0 54.6 54.6c6 6 14.1 9.4 22.6 9.4l39.7 0c10 0 15-12.1 7.9-19.1l-46-46c46-7.1 81.1-46.9 81.1-94.9l0-256c0-53-43-96-96-96L96 0zM64 96c0-17.7 14.3-32 32-32l256 0c17.7 0 32 14.3 32 32l0 96c0 17.7-14.3 32-32 32L96 224c-17.7 0-32-14.3-32-32l0-96zM224 288a48 48 0 1 1 0 96 48 48 0 1 1 0-96z"/></svg>`, 
+            title: 'High-Speed Rail', 
+            price: '25 coins/min' 
+        },
+        { 
+            icon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--!Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.--><path d="M288 0C422.4 0 512 35.2 512 80l0 16 0 32c17.7 0 32 14.3 32 32l0 64c0 17.7-14.3 32-32 32l0 160c0 17.7-14.3 32-32 32l0 32c0 17.7-14.3 32-32 32l-32 0c-17.7 0-32-14.3-32-32l0-32-192 0 0 32c0 17.7-14.3 32-32 32l-32 0c-17.7 0-32-14.3-32-32l0-32c-17.7 0-32-14.3-32-32l0-160c-17.7 0-32-14.3-32-32l0-64c0-17.7 14.3-32 32-32c0 0 0 0 0 0l0-32s0 0 0 0l0-16C64 35.2 153.6 0 288 0zM128 160l0 96c0 17.7 14.3 32 32 32l112 0 0-160-112 0c-17.7 0-32 14.3-32 32zM304 288l112 0c17.7 0 32-14.3 32-32l0-96c0-17.7-14.3-32-32-32l-112 0 0 160zM144 400a32 32 0 1 0 0-64 32 32 0 1 0 0 64zm288 0a32 32 0 1 0 0-64 32 32 0 1 0 0 64zM384 80c0-8.8-7.2-16-16-16L208 64c-8.8 0-16 7.2-16 16s7.2 16 16 16l160 0c8.8 0 16-7.2 16-16z"/></svg>`, 
+            title: 'Bus', 
+            price: '5 coins/min' 
+        },
+        { 
+            icon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><path d="M192 32c0-17.7 14.3-32 32-32L352 0c17.7 0 32 14.3 32 32l0 32 48 0c26.5 0 48 21.5 48 48l0 128 44.4 14.8c23.1 7.7 29.5 37.5 11.5 53.9l-101 92.6c-16.2 9.4-34.7 15.1-50.9 15.1c-19.6 0-40.8-7.7-59.2-20.3c-22.1-15.5-51.6-15.5-73.7 0c-17.1 11.8-38 20.3-59.2 20.3c-16.2 0-34.7-5.7-50.9-15.1l-101-92.6c-18-16.5-11.6-46.2 11.5-53.9L96 240l0-128c0-26.5 21.5-48 48-48l48 0 0-32zM160 218.7l107.8-35.9c13.1-4.4 27.3-4.4 40.5 0L416 218.7l0-90.7-256 0 0 90.7zM306.5 421.9C329 437.4 356.5 448 384 448c26.9 0 55.4-10.8 77.4-26.1c0 0 0 0 0 0c11.9-8.5 28.1-7.8 39.2 1.7c14.4 11.9 32.5 21 50.6 25.2c17.2 4 27.9 21.2 23.9 38.4s-21.2 27.9-38.4 23.9c-24.5-5.7-44.9-16.5-58.2-25C449.5 501.7 417 512 384 512c-31.9 0-60.6-9.9-80.4-18.9c-5.8-2.7-11.1-5.3-15.6-7.7c-4.5 2.4-9.7 5.1-15.6 7.7c-19.8 9-48.5 18.9-80.4 18.9c-33 0-65.5-10.3-94.5-25.8c-13.4 8.4-33.7 19.3-58.2 25c-17.2 4-34.4-6.7-38.4-23.9s6.7-34.4 23.9-38.4c18.1-4.2 36.2-13.3 50.6-25.2c11.1-9.4 27.3-10.1 39.2-1.7c0 0 0 0 0 0C136.7 437.2 165.1 448 192 448c27.5 0 55-10.6 77.5-26.1c11.1-7.9 25.9-7.9 37 0z"/></svg>`, 
+            title: 'Ferry', 
+            price: '10 coins/min' 
+        },
+        {
+            icon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--!Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.--><path d="M316.9 18C311.6 7 300.4 0 288.1 0s-23.4 7-28.8 18L195 150.3 51.4 171.5c-12 1.8-22 10.2-25.7 21.7s-.7 24.2 7.9 32.7L137.8 329 113.2 474.7c-2 12 3 24.2 12.9 31.3s23 8 33.8 2.3l128.3-68.5 128.3 68.5c10.8 5.7 23.9 4.9 33.8-2.3s14.9-19.3 12.9-31.3L438.5 329 542.7 225.9c8.6-8.5 11.7-21.2 7.9-32.7s-13.7-19.9-25.7-21.7L381.2 150.3 316.9 18z"/></svg>`,
+            title: 'Double value & veto of next challenge', 
+            price: '250 coins' 
+        }
+    ];
+
+    items.forEach(item => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'shop-item';
+        
+        itemDiv.innerHTML = `
+            <div class="shop-item-icon">${item.icon}</div>
+            <div class="shop-item-content">
+                <h4 class="shop-item-title">${item.title}</h4>
+                <p class="shop-item-description">${item.price}</p>
+            </div>
+        `;
+        
+        content.appendChild(itemDiv);
+    });
+
+    shopOverlay.appendChild(header);
+    shopOverlay.appendChild(content);
+    document.body.appendChild(shopOverlay);
+    
+    // Force a reflow before adding the visible class
+    shopOverlay.offsetHeight;
+    requestAnimationFrame(() => {
+        shopOverlay.classList.add('visible');
+    });
+}
+
+function openShop() {
+    const shopOverlay = document.getElementById('shop-overlay');
+    if (!shopOverlay) {
+        createShopMenu();
+        // Small delay to ensure DOM is ready
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                document.getElementById('shop-overlay').classList.add('visible');
+                document.body.classList.add('shop-open');
+            });
+        });
+    } else {
+        shopOverlay.classList.add('visible');
+        document.body.classList.add('shop-open');
+    }
+}
+
+function closeShop() {
+    const shopOverlay = document.getElementById('shop-overlay');
+    shopOverlay.classList.remove('visible');
+    document.body.classList.remove('shop-open');
+    
+    // Remove the element after animation completes
+    shopOverlay.addEventListener('transitionend', function handler(e) {
+        if (e.propertyName === 'transform') {
+            shopOverlay.removeEventListener('transitionend', handler);
+            if (!shopOverlay.classList.contains('visible')) {
+                shopOverlay.remove();
+            }
+        }
+    });
+}
+
+// Update click handler for coin button
+document.addEventListener('DOMContentLoaded', () => {
+    const coinButton = document.getElementById('coin-button');
+    if (coinButton) {
+        coinButton.addEventListener('click', openShop);
+    }
+});
 

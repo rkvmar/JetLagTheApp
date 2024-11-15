@@ -7,12 +7,16 @@ const users = [{
     username: "marc", 
     coins: 10000, 
     position: null,
-    activeChallenge: null
+    activeChallenge: null,
+    loggedIn: false,
+    lastHeartbeat: null
 }, {
     username: "henry", 
     coins: 100, 
     position: null,
-    activeChallenge: null
+    activeChallenge: null,
+    loggedIn: false,
+    lastHeartbeat: null
 }];
 const challenges = [{title: "Challenge 1", description: "Challenge 1 description", reward: 100}, {title: "Challenge 2", description: "Challenge 2 description", reward: 200}];
 const fs = require('fs');
@@ -33,17 +37,27 @@ app.post('/check-user', (req, res) => {
     const { username } = req.body;
     console.log('Received username:', username);
     
-    // Find the user in the users array
     const user = users.find(user => 
         user.username.toLowerCase() === username.toLowerCase()
     );
     
-    // Send back both existence status and coins if user exists
-    res.json({
-        exists: !!user,
-        coins: user ? user.coins : null,
-        activeChallenge: user ? user.activeChallenge : null
-    });
+    if (user) {
+        user.loggedIn = true;
+        user.lastHeartbeat = Date.now();
+        console.log(`User ${username} logged in`);
+        
+        res.json({
+            exists: true,
+            coins: user.coins,
+            activeChallenge: user.activeChallenge
+        });
+    } else {
+        res.json({
+            exists: false,
+            coins: null,
+            activeChallenge: null
+        });
+    }
 });
 
 // Add new endpoint for updating user position
@@ -180,10 +194,58 @@ app.get('/check-veto', (req, res) => {
     }
 });
 
+// Add heartbeat endpoint
+app.post('/heartbeat', (req, res) => {
+    const { username } = req.body;
+    const user = users.find(user => user.username.toLowerCase() === username.toLowerCase());
+    
+    if (user) {
+        user.loggedIn = true;
+        user.lastHeartbeat = Date.now();
+        res.json({ success: true });
+    } else {
+        res.json({ success: false, error: 'User not found' });
+    }
+});
+
+// Comment out user tracking code
+// function checkInactiveUsers() {
+//     const inactivityThreshold = 5000;
+//     const currentTime = Date.now();
+    
+//     users.forEach(user => {
+//         if (user.loggedIn && (!user.lastHeartbeat || currentTime - user.lastHeartbeat > inactivityThreshold)) {
+//             user.loggedIn = false;
+//             user.position = null;
+//             console.log(`User ${user.username} marked as inactive`);
+//         }
+//     });
+// }
+
+// Comment out the interval
+// setInterval(checkInactiveUsers, 1000);
+
 // Start server
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
 });
 app.get('/data', (req, res) => {
-    res.json(users);
+    // const activeUsers = users.filter(user => user.loggedIn);  // Comment out filtering
+    res.json(users);  // Return all users
 });
+
+// Comment out logout endpoint
+// app.post('/logout', (req, res) => {
+//     const { username } = req.body;
+//     const user = users.find(user => user.username.toLowerCase() === username.toLowerCase());
+    
+//     if (user) {
+//         user.loggedIn = false;
+//         user.position = null;
+//         user.lastHeartbeat = null;
+//         console.log(`User ${username} logged out`);
+//         res.json({ success: true });
+//     } else {
+//         res.json({ success: false, error: 'User not found' });
+//     }
+// });
